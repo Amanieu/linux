@@ -192,9 +192,6 @@ typedef union compat_sigval {
 	compat_uptr_t	sival_ptr;
 } compat_sigval_t;
 
-#define HAVE_ARCH_COPY_SIGINFO_TO_USER32
-#define HAVE_ARCH_COPY_SIGINFO_FROM_USER32
-
 /*
  * How these fields are to be accessed.
  */
