@@ -2713,11 +2713,13 @@ int copy_siginfo_to_user(siginfo_t __user *to, const siginfo_t *from)
 		return __copy_to_user(to, from, sizeof(siginfo_t))
 			? -EFAULT : 0;
 	/*
-	 * If you change siginfo_t structure, please be sure
-	 * this code is fixed accordingly.
-	 * Please remember to update the signalfd_copyinfo() function
-	 * inside fs/signalfd.c too, in case siginfo_t changes.
-	 * It should never copy any pad contained in the structure
+	 * If you change siginfo_t structure, please be sure that
+	 * all these functions are fixed accordingly:
+	 * copy_siginfo_to_user
+	 * copy_siginfo_to_user32
+	 * copy_siginfo_from_user32
+	 * signalfd_copyinfo
+	 * They should never copy any pad contained in the structure
 	 * to avoid security leaks, but must copy the generic
 	 * 3 ints plus the relevant union member.
 	 */

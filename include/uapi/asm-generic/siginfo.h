@@ -49,6 +49,7 @@ typedef struct siginfo {
 	int si_signo;
 	int si_errno;
 	int si_code;
+	int _pad2[__ARCH_SI_PREAMBLE_SIZE / sizeof(int) - 3];
 
 	union {
 		int _pad[SI_PAD_SIZE];
