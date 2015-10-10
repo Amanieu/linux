@@ -130,6 +130,7 @@ typedef union compat_sigval {
 	compat_uptr_t	sival_ptr;
 } compat_sigval_t;
 
+/* Need special handling for SIGCHLD on x32 */
 #define HAVE_ARCH_COMPAT_SIGINFO_T
 #define HAVE_ARCH_COPY_SIGINFO_TO_USER32
 #define HAVE_ARCH_COPY_SIGINFO_FROM_USER32
@@ -140,12 +141,12 @@ typedef struct compat_siginfo {
 	int si_code;
 
 	union {
-		int _pad[128/sizeof(int) - 3];
+		int _pad[128 / sizeof(int) - 3];
 
 		/* kill() */
 		struct {
-			unsigned int _pid;	/* sender's pid */
-			unsigned int _uid;	/* sender's uid */
+			compat_pid_t _pid;	/* sender's pid */
+			__compat_uid32_t _uid;	/* sender's uid */
 		} _kill;
 
 		/* POSIX.1b timers */
@@ -153,21 +154,19 @@ typedef struct compat_siginfo {
 			compat_timer_t _tid;	/* timer id */
 			int _overrun;		/* overrun count */
 			compat_sigval_t _sigval;	/* same as below */
-			int _sys_private;	/* not to be passed to user */
-			int _overrun_incr;	/* amount to add to overrun */
 		} _timer;
 
 		/* POSIX.1b signals */
 		struct {
-			unsigned int _pid;	/* sender's pid */
-			unsigned int _uid;	/* sender's uid */
+			compat_pid_t _pid;	/* sender's pid */
+			__compat_uid32_t _uid;	/* sender's uid */
 			compat_sigval_t _sigval;
 		} _rt;
 
 		/* SIGCHLD */
 		struct {
-			unsigned int _pid;	/* which child */
-			unsigned int _uid;	/* sender's uid */
+			compat_pid_t _pid;	/* which child */
+			__compat_uid32_t _uid;	/* sender's uid */
 			int _status;		/* exit code */
 			compat_clock_t _utime;
 			compat_clock_t _stime;
@@ -175,7 +174,7 @@ typedef struct compat_siginfo {
 
 		/* SIGCHLD (x32 version) */
 		struct {
-			unsigned int _pid;	/* which child */
+			compat_pid_t _pid;	/* which child */
 			unsigned int _uid;	/* sender's uid */
 			int _status;		/* exit code */
 			compat_s64 _utime;
@@ -184,19 +183,27 @@ typedef struct compat_siginfo {
 
 		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
 		struct {
-			unsigned int _addr;	/* faulting insn/memory ref. */
+			compat_uptr_t _addr;	/* faulting insn/memory ref. */
+#ifdef __ARCH_SI_TRAPNO
+			int _trapno;	/* TRAP # which caused the signal */
+#endif
+			short _addr_lsb; /* LSB of the reported address */
+			struct {
+				compat_uptr_t _lower;
+				compat_uptr_t _upper;
+			} _addr_bnd;
 		} _sigfault;
 
 		/* SIGPOLL */
 		struct {
-			int _band;	/* POLL_IN, POLL_OUT, POLL_MSG */
+			compat_long_t _band; /* POLL_IN, POLL_OUT, POLL_MSG */
 			int _fd;
 		} _sigpoll;
 
 		struct {
-			unsigned int _call_addr; /* calling insn */
+			compat_uptr_t _call_addr; /* calling insn */
 			int _syscall;	/* triggering system call number */
-			unsigned int _arch;	/* AUDIT_ARCH_* of syscall */
+			compat_uint_t _arch;	/* AUDIT_ARCH_* of syscall */
 		} _sigsys;
 	} _sifields;
 } compat_siginfo_t;
