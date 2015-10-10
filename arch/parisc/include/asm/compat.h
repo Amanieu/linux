@@ -134,6 +134,8 @@ typedef union compat_sigval {
 	compat_uptr_t	sival_ptr;
 } compat_sigval_t;
 
+#define HAVE_ARCH_COMPAT_SIGINFO_T
+
 typedef struct compat_siginfo {
 	int si_signo;
 	int si_errno;

@@ -115,6 +115,7 @@ typedef union compat_sigval {
 	compat_uptr_t	sival_ptr;
 } compat_sigval_t;
 
+#define HAVE_ARCH_COMPAT_SIGINFO_T
 #define COMPAT_SI_PAD_SIZE	(128/sizeof(int) - 3)
 
 typedef struct compat_siginfo {
