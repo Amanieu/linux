@@ -80,9 +80,18 @@ static unsigned int signalfd_poll(struct file *file, poll_table *wait)
 static int signalfd_copyinfo(struct signalfd_siginfo __user *uinfo,
 			     siginfo_t const *kinfo)
 {
-	long err;
+	long err, ssi_ptr, ssi_addr;
 
 	BUILD_BUG_ON(sizeof(struct signalfd_siginfo) != 128);
+
+	/*
+	 * ssi_ptr for a compat task should be sourced from si_int instead
+	 * of si_ptr since that is what copy_siginfo_from_user32 and
+	 * get_compat_sigevent use. 32-bit pointer values are sign-extended
+	 * to 64 bits when written to ssi_ptr, which matches the behavior of
+	 * 32-bit kernels.
+	 */
+	ssi_ptr = is_compat_task() ? kinfo->si_int : (long) kinfo->si_ptr;
 
 	/*
 	 * Unused members should be zero ...
@@ -90,29 +99,47 @@ static int signalfd_copyinfo(struct signalfd_siginfo __user *uinfo,
 	err = __clear_user(uinfo, sizeof(*uinfo));
 
 	/*
-	 * If you change siginfo_t structure, please be sure
-	 * this code is fixed accordingly.
+	 * If you change siginfo_t structure, please be sure that
+	 * all these functions are fixed accordingly:
+	 * copy_siginfo_to_user
+	 * copy_siginfo_to_user32
+	 * copy_siginfo_from_user32
+	 * signalfd_copyinfo
+	 * They should never copy any pad contained in the structure
+	 * to avoid security leaks, but must copy the generic
+	 * 3 ints plus the relevant union member.
 	 */
 	err |= __put_user(kinfo->si_signo, &uinfo->ssi_signo);
 	err |= __put_user(kinfo->si_errno, &uinfo->ssi_errno);
 	err |= __put_user((short) kinfo->si_code, &uinfo->ssi_code);
+	if (kinfo->si_code < 0) {
+		/* Grab some standard fields for sigqueue()-generated signals */
+		err |= __put_user(kinfo->si_pid, &uinfo->ssi_pid);
+		err |= __put_user(kinfo->si_uid, &uinfo->ssi_uid);
+		err |= __put_user(ssi_ptr, &uinfo->ssi_ptr);
+		err |= __put_user(kinfo->si_int, &uinfo->ssi_int);
+		return err ? -EFAULT : sizeof(*uinfo);
+	}
 	switch (kinfo->si_code & __SI_MASK) {
 	case __SI_KILL:
 		err |= __put_user(kinfo->si_pid, &uinfo->ssi_pid);
 		err |= __put_user(kinfo->si_uid, &uinfo->ssi_uid);
 		break;
 	case __SI_TIMER:
-		 err |= __put_user(kinfo->si_tid, &uinfo->ssi_tid);
-		 err |= __put_user(kinfo->si_overrun, &uinfo->ssi_overrun);
-		 err |= __put_user((long) kinfo->si_ptr, &uinfo->ssi_ptr);
-		 err |= __put_user(kinfo->si_int, &uinfo->ssi_int);
+		err |= __put_user(kinfo->si_tid, &uinfo->ssi_tid);
+		err |= __put_user(kinfo->si_overrun, &uinfo->ssi_overrun);
+		err |= __put_user(ssi_ptr, &uinfo->ssi_ptr);
+		err |= __put_user(kinfo->si_int, &uinfo->ssi_int);
 		break;
 	case __SI_POLL:
 		err |= __put_user(kinfo->si_band, &uinfo->ssi_band);
 		err |= __put_user(kinfo->si_fd, &uinfo->ssi_fd);
 		break;
 	case __SI_FAULT:
-		err |= __put_user((long) kinfo->si_addr, &uinfo->ssi_addr);
+		/* Ensure that ssi_addr is sign-extended to 64 bits */
+		ssi_addr = is_compat_task() ? (int)(long) kinfo->si_addr :
+			(long) kinfo->si_addr;
+		err |= __put_user(ssi_addr, &uinfo->ssi_addr);
 #ifdef __ARCH_SI_TRAPNO
 		err |= __put_user(kinfo->si_trapno, &uinfo->ssi_trapno);
 #endif
@@ -139,21 +166,20 @@ static int signalfd_copyinfo(struct signalfd_siginfo __user *uinfo,
 	case __SI_MESGQ: /* But this is */
 		err |= __put_user(kinfo->si_pid, &uinfo->ssi_pid);
 		err |= __put_user(kinfo->si_uid, &uinfo->ssi_uid);
-		err |= __put_user((long) kinfo->si_ptr, &uinfo->ssi_ptr);
+		err |= __put_user(ssi_ptr, &uinfo->ssi_ptr);
 		err |= __put_user(kinfo->si_int, &uinfo->ssi_int);
 		break;
-	default:
-		/*
-		 * This case catches also the signals queued by sigqueue().
-		 */
+#ifdef __ARCH_SIGSYS
+	case __SI_SYS: /* SIGSYS fields are not in signalfd_siginfo */
+		break;
+#endif
+	default: /* this is just in case for now ... */
 		err |= __put_user(kinfo->si_pid, &uinfo->ssi_pid);
 		err |= __put_user(kinfo->si_uid, &uinfo->ssi_uid);
-		err |= __put_user((long) kinfo->si_ptr, &uinfo->ssi_ptr);
-		err |= __put_user(kinfo->si_int, &uinfo->ssi_int);
 		break;
 	}
 
-	return err ? -EFAULT: sizeof(*uinfo);
+	return err ? -EFAULT : sizeof(*uinfo);
 }
 
 static ssize_t signalfd_dequeue(struct signalfd_ctx *ctx, siginfo_t *info,
