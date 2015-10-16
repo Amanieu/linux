@@ -124,11 +124,6 @@ typedef union compat_sigval {
 	compat_uptr_t	sival_ptr;
 } compat_sigval_t;
 
-#define SI_PAD_SIZE32	(128/sizeof(int) - 3)
-
-#define HAVE_ARCH_COPY_SIGINFO_TO_USER32
-#define HAVE_ARCH_COPY_SIGINFO_FROM_USER32
-
 #define COMPAT_OFF_T_MAX	0x7fffffff
 #define COMPAT_LOFF_T_MAX	0x7fffffffffffffffL
 
