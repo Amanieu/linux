@@ -132,9 +132,6 @@ typedef union compat_sigval {
 
 /* Can't use the generic version because si_code and si_errno are swapped */
 #define HAVE_ARCH_COMPAT_SIGINFO_T
-#define HAVE_ARCH_COPY_SIGINFO_TO_USER32
-#define HAVE_ARCH_COPY_SIGINFO_FROM_USER32
-#define SI_PAD_SIZE32	(128/sizeof(int) - 3)
 
 typedef struct compat_siginfo {
 	int si_signo;
