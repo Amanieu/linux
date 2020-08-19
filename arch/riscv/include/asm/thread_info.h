@@ -48,6 +48,9 @@ struct thread_info {
 	long			kernel_sp;	/* Kernel stack pointer */
 	long			user_sp;	/* User stack pointer */
 	int			cpu;
+#ifdef CONFIG_TANGO_BT
+	int			tango_syscall;
+#endif
 };
 
 /*
@@ -61,6 +64,11 @@ struct thread_info {
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
 	.addr_limit	= KERNEL_DS,		\
 }
+
+#ifdef CONFIG_TANGO_BT
+void arch_setup_new_exec(void);
+#define arch_setup_new_exec	arch_setup_new_exec
+#endif
 
 #endif /* !__ASSEMBLY__ */
 

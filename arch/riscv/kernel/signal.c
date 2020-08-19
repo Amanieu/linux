@@ -289,6 +289,11 @@ static void do_signal(struct pt_regs *regs)
 			break;
 		case -ERESTART_RESTARTBLOCK:
                         regs->a0 = regs->orig_a0;
+#ifdef CONFIG_TANGO_BT
+			if (regs->a7 & 0x80000000)
+				regs->a7 = __NR_restart_syscall | 0x80000000;
+			else
+#endif
 			regs->a7 = __NR_restart_syscall;
 			regs->epc -= 0x4;
 			break;

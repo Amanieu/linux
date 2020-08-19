@@ -51,6 +51,7 @@ config RISCV
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_KGDB_QXFER_PKT
 	select HAVE_ARCH_MMAP_RND_BITS if MMU
+	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if MMU && COMPAT
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ASM_MODVERSIONS
@@ -88,6 +89,12 @@ config ARCH_MMAP_RND_BITS_MIN
 config ARCH_MMAP_RND_BITS_MAX
 	default 24 if 64BIT # SV39 based
 	default 17
+
+config ARCH_MMAP_RND_COMPAT_BITS_MIN
+       default 8
+
+config ARCH_MMAP_RND_COMPAT_BITS_MAX
+       default 17
 
 # set if we run in machine mode, cleared if we run in supervisor mode
 config RISCV_M_MODE
@@ -342,6 +349,25 @@ config RISCV_SBI_V01
 	help
 	  This config allows kernel to use SBI v0.1 APIs. This will be
 	  deprecated in future once legacy M-mode software are no longer in use.
+
+config COMPAT
+	depends on 64BIT
+	bool "Kernel support for 32-bit binaries"
+
+config SYSVIPC_COMPAT
+	def_bool y
+	depends on COMPAT && SYSVIPC
+
+config TANGO_BT
+	bool "Tango binary translator support"
+	depends on 64BIT
+	depends on COMPAT
+	select CHECKPOINT_RESTORE
+	select BINFMT_MISC
+	default y
+	help
+	  Kernel support for the Tango binary translator which adds support for
+	  running 32-bit ARM binaries.
 endmenu
 
 menu "Boot options"

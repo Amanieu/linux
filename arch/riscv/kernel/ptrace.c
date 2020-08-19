@@ -11,6 +11,7 @@
 #include <asm/syscall.h>
 #include <asm/thread_info.h>
 #include <linux/audit.h>
+#include <linux/compat.h>
 #include <linux/ptrace.h>
 #include <linux/elf.h>
 #include <linux/regset.h>
@@ -143,6 +144,26 @@ long arch_ptrace(struct task_struct *child, long request,
 
 	return ret;
 }
+
+#ifdef CONFIG_COMPAT
+long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
+			compat_ulong_t caddr, compat_ulong_t cdata)
+{
+	long ret = -EIO;
+
+	switch (request) {
+	case PTRACE_GETREGSET:
+	case PTRACE_SETREGSET:
+		/* Unimplemented for now */
+		break;
+	default:
+		ret = compat_ptrace_request(child, request, caddr, cdata);
+		break;
+	}
+
+	return ret;
+}
+#endif /* CONFIG_COMPAT */
 
 /*
  * Allows PTRACE_SYSCALL to work.  These are called from entry.S in

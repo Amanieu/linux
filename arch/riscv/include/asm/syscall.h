@@ -11,6 +11,7 @@
 #define _ASM_RISCV_SYSCALL_H
 
 #include <uapi/linux/audit.h>
+#include <linux/compat.h>
 #include <linux/sched.h>
 #include <linux/err.h>
 
@@ -25,6 +26,10 @@ extern void *sys_call_table[];
 static inline int syscall_get_nr(struct task_struct *task,
 				 struct pt_regs *regs)
 {
+#ifdef CONFIG_TANGO_BT
+	if (is_tango_compat_thread(task_thread_info(task)))
+		return regs->a7 & 0x7fffffff;
+#endif
 	return regs->a7;
 }
 
@@ -76,6 +81,8 @@ static inline void syscall_set_arguments(struct task_struct *task,
 static inline int syscall_get_arch(struct task_struct *task)
 {
 #ifdef CONFIG_64BIT
+	if (is_compat_thread(task_thread_info(task)))
+		return AUDIT_ARCH_RISCV32;
 	return AUDIT_ARCH_RISCV64;
 #else
 	return AUDIT_ARCH_RISCV32;

@@ -145,33 +145,59 @@ handle_syscall:
 	 */
 	addi s2, s2, 0x4
 	REG_S s2, PT_EPC(sp)
+#ifdef CONFIG_TANGO_BT
+	/* Set the tango_syscall flag before tracing. */
+	li t2, 0x80000000
+	and t2, a7, t2
+	beqz t2, 1f
+	li t2, 1
+	sw t2, TASK_TI_TANGO_SYSCALL(tp)
+1:
+#endif
 	/* Trace syscalls, but only if requested by the user. */
 	REG_L t0, TASK_TI_FLAGS(tp)
 	andi t0, t0, _TIF_SYSCALL_WORK
 	bnez t0, handle_syscall_trace_enter
 check_syscall_nr:
+	la s0, sys_call_table
+#ifdef CONFIG_TANGO_BT
+	/* Fix up syscall parameters for compat. */
+	li t2, 0x80000000
+	and t2, a7, t2
+	beqz t2, 2f
+	la s0, sys_call_table32
+	li t2, 0x7fffffff
+	and a7, a7, t2
+	li t2, 0xffffffff
+	and a0, a0, t2
+	and a1, a1, t2
+	and a2, a2, t2
+	and a3, a3, t2
+	and a4, a4, t2
+	and a5, a5, t2
+2:
+#endif
 	/* Check to make sure we don't jump to a bogus syscall number. */
 	li t0, __NR_syscalls
-	la s0, sys_ni_syscall
+	la s1, sys_ni_syscall
 	/*
 	 * Syscall number held in a7.
 	 * If syscall number is above allowed value, redirect to ni_syscall.
 	 */
-	bge a7, t0, 1f
+	bge a7, t0, 3f
 	/*
 	 * Check if syscall is rejected by tracer, i.e., a7 == -1.
 	 * If yes, we pretend it was executed.
 	 */
 	li t1, -1
 	beq a7, t1, ret_from_syscall_rejected
-	blt a7, t1, 1f
+	blt a7, t1, 3f
 	/* Call syscall */
-	la s0, sys_call_table
 	slli t0, a7, RISCV_LGPTR
 	add s0, s0, t0
-	REG_L s0, 0(s0)
-1:
-	jalr s0
+	REG_L s1, 0(s0)
+3:
+	jalr s1
 
 ret_from_syscall:
 	/* Set user a0 to kernel a0 */
@@ -186,6 +212,11 @@ ret_from_syscall_rejected:
 	REG_L t0, TASK_TI_FLAGS(tp)
 	andi t0, t0, _TIF_SYSCALL_WORK
 	bnez t0, handle_syscall_trace_exit
+
+ret_from_syscall_after_trace:
+#ifdef CONFIG_TANGO_BT
+	sw zero, TASK_TI_TANGO_SYSCALL(tp)
+#endif
 
 ret_from_exception:
 	REG_L s0, PT_STATUS(sp)
@@ -322,7 +353,7 @@ handle_syscall_trace_enter:
 handle_syscall_trace_exit:
 	move a0, sp
 	call do_syscall_trace_exit
-	j ret_from_exception
+	j ret_from_syscall_after_trace
 
 END(handle_exception)
 

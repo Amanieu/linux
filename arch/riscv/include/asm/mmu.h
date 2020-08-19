@@ -18,6 +18,9 @@ typedef struct {
 	/* A local icache flush is needed before user execution can resume. */
 	cpumask_t icache_stale_mask;
 #endif
+#ifdef CONFIG_TANGO_BT
+	unsigned long	tango_mmap_base;
+#endif
 } mm_context_t;
 
 #endif /* __ASSEMBLY__ */
