@@ -184,7 +184,8 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	err |= copy_siginfo_to_user(&frame->info, &ksig->info);
 
 	/* Create the ucontext. */
-	err |= __put_user(0, &frame->uc.uc_flags);
+	// HACK: Pass the cause to user mode through uc_flags
+	err |= __put_user(regs->cause, &frame->uc.uc_flags);
 	err |= __put_user(NULL, &frame->uc.uc_link);
 	err |= __save_altstack(&frame->uc.uc_stack, regs->sp);
 	err |= setup_sigcontext(frame, regs);
